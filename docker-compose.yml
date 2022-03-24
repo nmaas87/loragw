@@ -1,0 +1,82 @@
+version: '2'
+
+services:
+  chirpstack-packet-multiplexer:
+    build: "./chirpstack-packet-multiplexer/"
+    container_name: chirpstack-packet-multiplexer
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - 1701:1701/udp
+
+  udp-packet-forwarder:
+    image: rakwireless/udp-packet-forwarder:latest
+    container_name: udp-packet-forwarder
+    restart: unless-stopped
+    privileged: true
+    #network_mode: host      # required to read main interface MAC instead of virtual one, you don't need this if you set the GATEWAY_EUI manually
+    environment:
+      CONCENTRATOR: SX1303
+      INTERFACE: USB
+      #HAS_GPS: 1
+      HAS_GPS: 0
+      HAS_LTE: 0
+      RESET_GPIO: 0
+      #RESET_GPIO: 17
+      POWER_EN_GPIO: 0
+      POWER_EN_LOGIC: 0
+      RADIO_DEV: /dev/ttyACM0
+      #GPS_DEV: /dev/ttyAMA0
+      #GPS_DEV:
+      GATEWAY_EUI: <YOUR_EUI>
+      #TTN_REGION: eu1
+      SERVER_HOST: chirpstack-packet-multiplexer
+      SERVER_PORT: 1701
+      BAND: eu_863_870
+      # If you want the gateway to report a specific lat/lon/alt you can set them this way:
+      #GPS_LATITUDE: 41.42
+      #GPS_LONGITUDE: 2.12
+      #GPS_ALTITUDE: 0
+
+  gpsTime:
+    build: "./gpsTime/gpsTime"
+    container_name: gpsTime
+    restart: unless-stopped
+    privileged: true
+    devices: 
+      - "/dev/ttyAMA0:/dev/ttyAMA0"
+      - "/dev/pps0:/dev/pps0"
+      - "/dev/rtc:/dev/rtc"
+    ports:
+      - "123"
+      - "123/udp"
+    environment:
+      - RESIN_HOST_CONFIG_dtparam="i2c_arm=on"
+      - RESIN_HOST_CONFIG_gpu_mem=16
+      - BALENA_HOST_CONFIG_enable_uart=1
+      - RESIN_HOST_CONFIG_avoid_warnings=1
+      - RESIN_SUPERVISOR_DELTA=1
+      - BALENA_HOST_CONFIG_dtoverlay="disable-bt","pps-gpio,gpiopin=4,capture_clear"
+      - BALENA_HOST_CONFIG_enable_uart=1
+      #- BAUD=9600
+      #- ALLOW=all
+      #- OFFSET=0.0
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/host/run/dbus/system_bus_socket
+    labels:
+      io.balena.features.dbus: '1'
+
+  sensor:
+    image: balenablocks/sensor
+    container_name: sensor
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - MQTT_ADDRESS=<YOUR_MQTT_SERVER>
+      - MQTT_PUB_INTERVAL=600
+      - MQTT_PUB_TOPIC=sensors
+      - COLLAPSE_FIELDS=1
+      - RAW_VALUES=0
+    labels:
+      io.balena.features.kernel-modules: '1'
+      io.balena.features.sysfs: '1'
+      io.balena.features.supervisor-api: '1'

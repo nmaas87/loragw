@@ -1,0 +1,21 @@
+[general]
+log_level=4
+
+[packet_multiplexer]
+bind="0.0.0.0:1701"
+
+#This sends the same traffic from the forwarder to your Chirpstack
+[[packet_multiplexer.backend]]
+host="<YOURCHIRPSTACK>:1700"
+uplink_only=false
+gateway_ids = [
+"YOURGWID",
+]
+
+#This sends the same traffic from the forwarder to TTNv3
+[[packet_multiplexer.backend]]
+host="eu1.cloud.thethings.network:1700"
+uplink_only=false
+gateway_ids = [
+"<YOURGWID>",
+]
